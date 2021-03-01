@@ -62,6 +62,7 @@ Network::~Network( )
 {
   for ( int r = 0; r < _size; ++r ) {
     if ( _routers[r] ) delete _routers[r];
+    if ( _tables[r] ) delete _tables[r];
   }
   for ( int s = 0; s < _nodes; ++s ) {
     if ( _inject[s] ) delete _inject[s];
@@ -131,6 +132,7 @@ void Network::_Alloc( )
 	  ( _channels != -1 ) );
 
   _routers.resize(_size);
+  _tables.resize(_size);
   gNodes = _nodes;
 
   /*booksim used arrays of flits as the channels which makes have capacity of

@@ -35,6 +35,7 @@
 #include "flit.hpp"
 #include "credit.hpp"
 #include "router.hpp"
+#include "table.hpp"
 #include "module.hpp"
 #include "timed_module.hpp"
 #include "flitchannel.hpp"
@@ -54,6 +55,7 @@ protected:
   int _classes;
 
   vector<Router *> _routers;
+  vector<Table *> _tables;
 
   vector<FlitChannel *> _inject;
   vector<CreditChannel *> _inject_cred;
@@ -111,6 +113,8 @@ public:
   const vector<CreditChannel *> & GetChannelsCred(){return _chan_cred;}
   const vector<Router *> & GetRouters(){return _routers;}
   Router * GetRouter(int index) {return _routers[index];}
+  const vector<Table *> & GetTables(){return _tables;}
+  Table * GetTable(int index) {return _tables[index];}
   int NumRouters() const {return _size;}
 };
 

@@ -449,11 +449,11 @@ void adaptive_xy_yx_mesh( const Router *r, const Flit *f,
       int credit_xy = r->GetUsedCredit(out_port_xy);
       int credit_yx = r->GetUsedCredit(out_port_yx);
       if(credit_xy > credit_yx) {
-	x_then_y = false;
+	      x_then_y = false;
       } else if(credit_xy < credit_yx) {
-	x_then_y = true;
+	      x_then_y = true;
       } else {
-	x_then_y = (RandomInt(1) > 0);
+	      x_then_y = (RandomInt(1) > 0);
       }
     }
     
@@ -471,6 +471,26 @@ void adaptive_xy_yx_mesh( const Router *r, const Flit *f,
 
   outputs->AddRange( out_port , vcBegin, vcEnd );
   
+}
+
+// Learning Approach Applied to Minimal Routing
+void lm_mesh( const Router *r, const Flit *f,
+     int in_channel, OutputSet *outputs, bool inject )
+{
+  int vcBegin = 0, vcEnd = gNumVCs-1;
+  if ( f->type == Flit::READ_REQUEST ) {
+    vcBegin = gReadReqBeginVC;
+    vcEnd = gReadReqEndVC;
+  } else if ( f->type == Flit::WRITE_REQUEST ) {
+    vcBegin = gWriteReqBeginVC;
+    vcEnd = gWriteReqEndVC;
+  } else if ( f->type ==  Flit::READ_REPLY ) {
+    vcBegin = gReadReplyBeginVC;
+    vcEnd = gReadReplyEndVC;
+  } else if ( f->type ==  Flit::WRITE_REPLY ) {
+    vcBegin = gWriteReplyBeginVC;
+    vcEnd = gWriteReplyEndVC;
+  }
 }
 
 void xy_yx_mesh( const Router *r, const Flit *f, 
@@ -530,6 +550,54 @@ void xy_yx_mesh( const Router *r, const Flit *f,
   outputs->AddRange( out_port , vcBegin, vcEnd );
   
 }
+
+void xy_mesh( const Router *r, const Flit *f, 
+		 int in_channel, OutputSet *outputs, bool inject )
+{
+  int vcBegin = 0, vcEnd = gNumVCs-1;
+  if ( f->type == Flit::READ_REQUEST ) {
+    vcBegin = gReadReqBeginVC;
+    vcEnd = gReadReqEndVC;
+  } else if ( f->type == Flit::WRITE_REQUEST ) {
+    vcBegin = gWriteReqBeginVC;
+    vcEnd = gWriteReqEndVC;
+  } else if ( f->type ==  Flit::READ_REPLY ) {
+    vcBegin = gReadReplyBeginVC;
+    vcEnd = gReadReplyEndVC;
+  } else if ( f->type ==  Flit::WRITE_REPLY ) {
+    vcBegin = gWriteReplyBeginVC;
+    vcEnd = gWriteReplyEndVC;
+  }
+  assert(((f->vc >= vcBegin) && (f->vc <= vcEnd)) || (inject && (f->vc < 0)));
+
+  int out_port;
+
+  if(inject) {
+
+    out_port = -1;
+
+  } else if(r->GetID() == f->dest) {
+
+    // at destination router, we don't need to separate VCs by dim order
+    out_port = 2*gN;
+
+  } else {
+
+    //each class must have at least 2 vcs assigned or else xy_yx will deadlock
+    int const available_vcs = (vcEnd - vcBegin + 1) / 2;
+    assert(available_vcs > 0);
+
+    out_port = dor_next_mesh( r->GetID(), f->dest, false );
+    vcEnd -= available_vcs;
+
+  }
+
+  outputs->Clear();
+
+  outputs->AddRange( out_port , vcBegin, vcEnd );
+  
+}
+
 
 //
 // End Balfour-Schultz
@@ -1966,6 +2034,7 @@ void InitializeRoutingMap( const Configuration & config )
   gRoutingFunctionMap["anca_tree4"]          = &tree4_anca;
   gRoutingFunctionMap["dor_mesh"]            = &dim_order_mesh;
   gRoutingFunctionMap["xy_yx_mesh"]          = &xy_yx_mesh;
+  gRoutingFunctionMap["xy_mesh"]             = &xy_mesh;
   gRoutingFunctionMap["adaptive_xy_yx_mesh"]          = &adaptive_xy_yx_mesh;
   // End Balfour-Schultz
   // ===================================================
