@@ -156,6 +156,9 @@ int main( int argc, char **argv )
 
   BookSimConfig config;
 
+  // set default config
+  argv[1] = (char *)"examples/config";
+  argc = 2;
 
   if ( !ParseArgs( &config, argc, argv ) ) {
     cerr << "Usage: " << argv[0] << " configfile... [param=value...]" << endl;
