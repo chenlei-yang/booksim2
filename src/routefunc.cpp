@@ -501,6 +501,12 @@ void lm_mesh( const Router *r, const Flit *f,
 void xy_yx_mesh( const Router *r, const Flit *f, 
 		 int in_channel, OutputSet *outputs, bool inject )
 {
+  // chenleiyang: show table of router r
+  if (r) {
+    Table* tb = r->GetTable();
+    // tb->show();
+  }
+
   int vcBegin = 0, vcEnd = gNumVCs-1;
   if ( f->type == Flit::READ_REQUEST ) {
     vcBegin = gReadReqBeginVC;
@@ -613,7 +619,6 @@ void xy_mesh( const Router *r, const Flit *f,
 int dor_next_mesh( int cur, int dest, bool descending )
 {
   bool flag = false;
-  if (dest == 22) flag = true;
   if (flag) {
     printf("cur = %d, dest = %d, pos = (%d, %d), dest = (%d, %d)\n", cur, dest, cur%gK, (cur*gK)/gNodes, dest%gK, (dest*gK)/gNodes);
   }

@@ -94,9 +94,10 @@ void KNCube::_BuildNet( const Configuration &config )
       }
     }
 
+    _tables[node] = new Table(gNodes, 6);
     _routers[node] = Router::NewRouter( config, this, router_name.str( ), 
 					node, 2*_n + 1, 2*_n + 1 );
-    _tables[node] = new Table(gNodes, 6);
+    _routers[node]->SetTable(_tables[node]);
     _timed_modules.push_back(_routers[node]);
 
     router_name.str("");

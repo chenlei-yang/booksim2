@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 
+#include "table.hpp"
 #include "timed_module.hpp"
 #include "flit.hpp"
 #include "credit.hpp"
@@ -71,6 +72,7 @@ protected:
   vector<FlitChannel *>   _output_channels;
   vector<CreditChannel *> _output_credits;
   vector<bool>            _channel_faults;
+  Table* _table;
 
 #ifdef TRACK_FLOWS
   vector<vector<int> > _received_flits;
@@ -98,6 +100,12 @@ public:
   static Router *NewRouter( const Configuration& config,
 			    Module *parent, const string & name, int id,
 			    int inputs, int outputs );
+  inline void SetTable( Table* table ) {
+    _table = table;
+  }
+  inline Table* GetTable() const {
+    return _table;
+  }
 
   virtual void AddInputChannel( FlitChannel *channel, CreditChannel *backchannel );
   virtual void AddOutputChannel( FlitChannel *channel, CreditChannel *backchannel );

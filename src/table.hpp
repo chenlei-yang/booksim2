@@ -28,6 +28,14 @@ public:
     inline int GetColumnSize() {
         return m_column;
     }
+    inline void show() {
+        for (int i=0; i<m_row; ++i) {
+            for (int j=0; j<m_column; ++j) {
+                printf("%d\t", m_table[i][j]);
+            }
+            printf("\n");
+        }
+    }
 };
 
 #endif
