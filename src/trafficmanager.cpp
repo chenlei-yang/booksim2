@@ -1553,7 +1553,7 @@ bool TrafficManager::_SingleSim( )
             cout << "Draining all recorded packets ..." << endl;
             int empty_steps = 0;
             while( _PacketsOutstanding( ) ) { 
-                _Step( ); 
+                _Step( );
 	
                 ++empty_steps;
 	

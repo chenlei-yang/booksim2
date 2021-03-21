@@ -39,6 +39,7 @@
 #include <map>
 #include <cstdlib>
 #include <cassert>
+#include <unistd.h>
 
 #include "booksim.hpp"
 #include "routefunc.hpp"
@@ -49,6 +50,7 @@
 #include "tree4.hpp"
 #include "qtree.hpp"
 #include "cmesh.hpp"
+
 
 
 
@@ -465,6 +467,9 @@ void adaptive_xy_yx_mesh( const Router *r, const Flit *f,
       vcBegin += available_vcs;
     }
 
+    // printf("router = %d, input = %d, output = %d\n",r->GetID(), in_channel, out_port);
+    // sleep(1);
+
   }
 
   outputs->Clear();
@@ -607,6 +612,11 @@ void xy_mesh( const Router *r, const Flit *f,
 
 int dor_next_mesh( int cur, int dest, bool descending )
 {
+  bool flag = false;
+  if (dest == 22) flag = true;
+  if (flag) {
+    printf("cur = %d, dest = %d, pos = (%d, %d), dest = (%d, %d)\n", cur, dest, cur%gK, (cur*gK)/gNodes, dest%gK, (dest*gK)/gNodes);
+  }
   if ( cur == dest ) {
     return 2*gN;  // Eject
   }
@@ -629,11 +639,25 @@ int dor_next_mesh( int cur, int dest, bool descending )
     dest %= gK;
   }
 
+  if (flag) {
+    printf("desceding = %d, cur = %d, dest = %d", descending, cur, dest);
+  }
+
   if ( cur < dest ) {
+    if (flag) {
+      if (descending) printf(" up\n\n");
+      else printf(" right\n\n");
+      sleep(5);
+    }
     return 2*dim_left;     // Right
   } else {
+    if (flag) {
+      if (descending) printf(" down\n\n");
+      else printf(" left\n\n");
+      sleep(5);
+    }
     return 2*dim_left + 1; // Left
-  }
+  } 
 }
 
 //=============================================================

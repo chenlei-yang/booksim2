@@ -1,33 +1,32 @@
 #ifndef _TABLE_HPP_
 #define _TABLE_HPP_
 
-class Table
-{
+#include "OutputChannel.h"
+#include <vector>
+
+class Table {
 private:
-    int _row;
-    int _column;
-    vector<vector<int> > _table;
+    int m_row;
+    int m_column;
+    std::vector<std::vector<int> > m_table;
 public:
-    Table(int row, int column) : _row(row), _column(column) {
-        _table.resize(row);
+    Table(int row, int column) : m_row(row), m_column(column) {
+        m_table.resize(row);
         for (int i=0; i<row; ++i) {
-            _table[i].resize(column);
+            m_table[i].resize(column);
         }
     }
-    /* 
-     * 
-     */
-    inline vector<vector<int> > GetTable() {
-        return _table;
+    inline std::vector<std::vector<int> > GetTable() {
+        return m_table;
     }
     inline int GetVal(int DesPos, int OutChan) {
-        return _table[DesPos][OutChan];
+        return m_table[DesPos][OutChan];
     }
-    inline int GetRow() {
-        return _row;
+    inline int GetRowSize() {
+        return m_row;
     }
-    inline int GetColumn() {
-        return _column;
+    inline int GetColumnSize() {
+        return m_column;
     }
 };
 
