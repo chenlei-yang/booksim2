@@ -68,6 +68,7 @@ void Flit::Reset()
   ctime     = -1 ;
   itime     = -1 ;
   atime     = -1 ;
+  time      = -1 ;
   id        = -1 ;
   pid       = -1 ;
   hops      = 0 ;
@@ -104,4 +105,29 @@ void Flit::FreeAll() {
     delete _all.top();
     _all.pop();
   }
+}
+
+void Flit::ShowPath() {
+  int sz = _path.size();
+  if (sz == 0) {
+    return;
+  }
+  int x = _path[0] / 8;
+  int y = _path[0] % 8;
+  printf("path(id = %d from %d to %d): (%d,%d)(%d)", id, src, dest, x, y, _time[0]);
+  for (int i=1; i<sz; ++i) {
+    x = _path[i] / 8;
+    y = _path[i] % 8;
+    printf("->(%d,%d)(%d)", x, y, _time[i]);
+  }
+  printf("\n");
+}
+
+void Flit::AddPath(int id) {
+  _path.push_back(id);
+  AddTime();
+}
+
+void Flit::AddTime() {
+  _time.push_back(ctime);
 }

@@ -94,7 +94,10 @@ void KNCube::_BuildNet( const Configuration &config )
       }
     }
 
-    _tables[node] = new Table(gNodes, 6);
+    _tables[node] = new Table(gNodes, 8);
+    std::string filename = "";
+    filename += std::to_string(node) + ".txt";
+    _tables[node]->LoadFromFile(filename);
     _routers[node] = Router::NewRouter( config, this, router_name.str( ), 
 					node, 2*_n + 1, 2*_n + 1 );
     _routers[node]->SetTable(_tables[node]);

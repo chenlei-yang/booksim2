@@ -30,6 +30,7 @@
 
 #include <iostream>
 #include <stack>
+#include <vector>
 
 #include "booksim.hpp"
 #include "outputset.hpp"
@@ -56,6 +57,7 @@ public:
   int  ctime;
   int  itime;
   int  atime;
+  int  time;
 
   int  id;
   int  pid;
@@ -89,6 +91,10 @@ public:
   void Free();
   static void FreeAll();
 
+  void ShowPath();
+  void AddPath(int id);
+  void AddTime();
+
 private:
 
   Flit();
@@ -96,6 +102,8 @@ private:
 
   static stack<Flit *> _all;
   static stack<Flit *> _free;
+  std::vector<int> _path;
+  std::vector<int> _time;
 
 };
 

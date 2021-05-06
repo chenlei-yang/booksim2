@@ -2292,6 +2292,12 @@ int IQRouter::GetUsedCredit(int o) const
   return dest_buf->Occupancy();
 }
 
+int IQRouter::GetUsedCreditVc(int o, int vc) const {
+  assert((o >= 0) && (o < _outputs));
+  BufferState const *const dest_buf = _next_buf[o];
+  return dest_buf->OccupancyFor(vc);
+}
+
 int IQRouter::GetBufferOccupancy(int i) const {
   assert(i >= 0 && i < _inputs);
   return _buf[i]->GetOccupancy();

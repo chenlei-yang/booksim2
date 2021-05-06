@@ -34,7 +34,10 @@ n = 2;
 // Routing
 // routing_function = dim_order;
 // routing_function = adaptive_xy_yx;
-routing_function = xy_yx;
+// routing_function = xy_yx;
+// routing_function = lm;
+routing_function = hara;
+// routing_function = lnm;
 // Flow control
 num_vcs = 2;
 vc_buf_size = 8;
@@ -67,9 +70,9 @@ packet_size = 4;
 // Simulation
 sim_type = latency;
 // sample_period = 100;  
-sample_period = 10000;  
+sample_period = 5000;
 max_samples = 4;
-warmup_periods = 1;
+warmup_periods = 100000;
 // batch_size = 2000;
 injection_rate_uses_flits = 1;
-injection_rate = 0.19;
+injection_rate = 0.2;

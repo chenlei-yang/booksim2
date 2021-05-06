@@ -50,11 +50,13 @@
 #include "tree4.hpp"
 #include "qtree.hpp"
 #include "cmesh.hpp"
+#include "path.hpp"
+#include "hara.hpp"
 
-
-
-
+bool flag = false;
+int gTime = 0;
 map<string, tRoutingFunction> gRoutingFunctionMap;
+map<int, Path> gRoutingPath;
 
 /* Global information used by routing functions */
 
@@ -467,9 +469,6 @@ void adaptive_xy_yx_mesh( const Router *r, const Flit *f,
       vcBegin += available_vcs;
     }
 
-    // printf("router = %d, input = %d, output = %d\n",r->GetID(), in_channel, out_port);
-    // sleep(1);
-
   }
 
   outputs->Clear();
@@ -482,29 +481,15 @@ void adaptive_xy_yx_mesh( const Router *r, const Flit *f,
 void lm_mesh( const Router *r, const Flit *f,
      int in_channel, OutputSet *outputs, bool inject )
 {
-  int vcBegin = 0, vcEnd = gNumVCs-1;
-  if ( f->type == Flit::READ_REQUEST ) {
-    vcBegin = gReadReqBeginVC;
-    vcEnd = gReadReqEndVC;
-  } else if ( f->type == Flit::WRITE_REQUEST ) {
-    vcBegin = gWriteReqBeginVC;
-    vcEnd = gWriteReqEndVC;
-  } else if ( f->type ==  Flit::READ_REPLY ) {
-    vcBegin = gReadReplyBeginVC;
-    vcEnd = gReadReplyEndVC;
-  } else if ( f->type ==  Flit::WRITE_REPLY ) {
-    vcBegin = gWriteReplyBeginVC;
-    vcEnd = gWriteReplyEndVC;
-  }
-}
-
-void xy_yx_mesh( const Router *r, const Flit *f, 
-		 int in_channel, OutputSet *outputs, bool inject )
-{
-  // chenleiyang: show table of router r
+  int observe_id = 100;
+  Table* table;
   if (r) {
-    Table* tb = r->GetTable();
+    Table* table = r->GetTable();
     // tb->show();
+    int id = r->GetID();
+    // f->Path.push_back(id);
+    // f->ShowPath();
+    // sleep(1);
   }
 
   int vcBegin = 0, vcEnd = gNumVCs-1;
@@ -542,18 +527,446 @@ void xy_yx_mesh( const Router *r, const Flit *f,
 
     // Route order (XY or YX) determined when packet is injected
     //  into the network
-    bool x_then_y = ((in_channel < 2*gN) ?
+    /* bool x_then_y = ((in_channel < 2*gN) ?
 		     (f->vc < (vcBegin + available_vcs)) :
-		     (RandomInt(1) > 0));
+		     (RandomInt(1) > 0)); */
 
-    if(x_then_y) {
+
+    if (f && f->id == observe_id) {
+      flag = true;
+      /* if (r) {
+        Table* tb = r->GetTable();
+        tb->show(); sleep(5);
+      } */
+    }
+
+    /* if(x_then_y) {
       out_port = dor_next_mesh( r->GetID(), f->dest, false );
       vcEnd -= available_vcs;
     } else {
       out_port = dor_next_mesh( r->GetID(), f->dest, true );
       vcBegin += available_vcs;
+    } */
+
+    
+    /* vector<int> v;
+    int rid = r->GetID(), dest = f->dest;
+    int x = rid / 8, y = rid % 8;
+    int dx = dest / 8, dy = dest % 8;
+    if (x < dx) {
+      v.push_back(4); v.push_back(5);
+      out_port = 2;
+    }
+    else if (x > dx) {
+      v.push_back(6); v.push_back(7);
+      out_port = 3;
+    }
+    if (y < dy) {
+      v.push_back(0); v.push_back(1);
+      out_port = 0;
+    }
+    else if (y > dy) {
+      v.push_back(2); v.push_back(3);
+      out_port = 1;
+    }
+    // vcBegin = vcEnd = 0;
+    srand(time(NULL));
+    int select = rand() % v.size();
+    // out_port = v[select] / 2;
+    vcBegin = vcEnd = 0;
+    */
+    /* if (out_port == 0 || out_port == 1) {
+      vcBegin += available_vcs;
+    } else {
+      vcEnd -= available_vcs;
+    } */
+
+    int out_port_xy = dor_next_mesh(r->GetID(), f->dest, false);
+    int out_port_yx = dor_next_mesh(r->GetID(), f->dest, true);
+
+    // Route order (XY or YX) determined when packet is injected
+    //  into the network, adaptively
+    bool x_then_y;
+    if (in_channel < 2 * gN) {
+      x_then_y = (f->vc < (vcBegin + available_vcs));
+    } else {
+      /* x_then_y
+      x_then_y = true;
+      */ 
+      int credit_xy = r->GetUsedCredit(out_port_xy);
+      int credit_yx = r->GetUsedCredit(out_port_yx);
+      int val_xy = r->GetTableVal(r->GetID(), out_port_xy);
+      int val_yx = r->GetTableVal(r->GetID(), out_port_yx);
+      // std::cout << "credit_xy = " << credit_xy << " credit_yx = " << credit_yx << std::endl;
+      // if (credit_xy && credit_yx) sleep(1);
+      if (val_xy < val_yx) {
+        x_then_y = true;
+      } else if (val_xy > val_yx) {
+        x_then_y = false;
+      } else {
+        x_then_y = (RandomInt(1) > 0);
+      }
     }
 
+    if (x_then_y) {
+      out_port = out_port_xy;
+      vcEnd -= available_vcs;
+      // vcBegin = vcEnd = 0;
+    } else {
+      out_port = out_port_yx;
+      vcBegin += available_vcs;
+    }
+
+    flag = false;
+
+    if (f && f->id == observe_id) {
+      std::cout << "*******************************************" << std::endl;
+      std::cout << "============= start lm mesh ===============" << std::endl;
+      std::cout << "f =" <<  *f << std::endl;
+      int src = f->src; int dest = f->dest;
+      int cur = 0; if (r) cur = r->GetID();
+      int sx = src / 8, sy = src % 8;
+      int dx = dest / 8, dy = dest % 8;
+      int cx = cur / 8, cy = cur % 8;
+      printf("from %d(%d, %d) to %d(%d, %d)\n", src, sx, sy, dest, dx, dy);
+      printf("in_channel = %d\n", in_channel);
+      printf("router id = %d(%d, %d)\n", cur, cx, cy);
+      std::cout << "x_then_y = " << x_then_y <<
+              " out_port = " << out_port << 
+              " vcBegin = " << vcBegin << 
+              " vcEnd = " << vcEnd << std::endl;
+      
+      /* Flit *nf = new Flit(*f);
+      nf->ShowPath();
+      delete(nf); */
+
+      gRoutingPath[f->id].Show();
+      // std::cout << "v.size() = " << v.size() << " select = " << select << std::endl;
+
+      std::cout << "============= end lm mesh ===============" << std::endl;
+      std::cout << "*****************************************" << std::endl;
+      sleep(1);
+    }
+  }
+
+  outputs->Clear();
+
+  outputs->AddRange( out_port , vcBegin, vcEnd );
+
+  /* if (out_port != -1 && out_port != 4 && out_port == 3) 
+    printf("out_port = %d, vcBegin = %d, vcEnd = %d\n", out_port, vcBegin, vcEnd); */
+
+  if (out_port != -1 && f) {
+    if (gRoutingPath.count(f->id)) {
+      if (r) {
+        gRoutingPath[f->id].Add(r, out_port, vcBegin, gTime, f);
+      }
+    } else {
+      if (r) {
+        Path p(r, out_port, vcBegin, gTime, f);
+        gRoutingPath[f->id] = p;
+      }
+    }
+  }
+}
+
+int get_next_port(int cur, int in_channel, int pos) {
+  int ret = 0;
+  int cx = cur / gK, cy = cur % gK;
+  if (pos == HaraPos::L) {
+    ret |= OutCh::L;
+  }
+  if (pos == HaraPos::E || pos == HaraPos::NE || pos == HaraPos::SE) {
+    if (cx != gK-1) {
+      ret |= OutCh::E;
+    }
+  }
+  if (in_channel == HaraCh::L || in_channel == HaraCh::N1 ||
+      in_channel == HaraCh::S1 || in_channel == HaraCh::E) {
+    if (cx != 0) {
+      ret |= OutCh::W;
+    }
+  }
+  if (in_channel == HaraCh::L || in_channel == HaraCh::S1 ||
+      in_channel == HaraCh::E) {
+    if (cy != gK-1) {
+      ret |= OutCh::N1;
+    }
+  }
+  if (in_channel == HaraCh::L || in_channel == HaraCh::N1 ||
+      in_channel == HaraCh::E || in_channel == HaraCh::S1) {
+    if (cy != 0) {
+      ret |= OutCh::S1;
+    }
+  }
+  if (in_channel != HaraCh::N2 && (pos == HaraPos::N || pos == HaraPos::E ||
+                                   pos == HaraPos::NE || pos == HaraPos::SE)) {
+    if (cy != gK-1) {
+      ret |= OutCh::N2;
+    }
+  }
+  if (in_channel != HaraCh::S2 && (pos == HaraPos::S || pos == HaraPos::E ||
+                                   pos == HaraPos::NE || pos == HaraPos::SE)) {
+    if (cy != 0) {
+      ret |= OutCh::S2;
+    }
+  }
+  return ret;
+}
+
+int get_hara_ch(int port, int vc) {
+  if (port == Port::W) return HaraCh::W;
+  if (port == Port::E) return HaraCh::E;
+  if (port == Port::N) {
+    if (vc == 0) return HaraCh::N1;
+    return HaraCh::N2;
+  }
+  if (port == Port::S) {
+    if (vc == 0) return HaraCh::S1;
+    return HaraCh::S2;
+  }
+  return HaraCh::L;
+}
+
+std::string get_available_port(int available_port) {
+  std::string ret = "{ ";
+  vector<std::string> v;
+  for (int i=0; i<=6; ++i) {
+    if (available_port & (1 << i)) {
+      v.push_back(OutCh::get_out_ch(1<<i));
+    }
+  }
+  if (v.size()) {
+    ret += v[0];
+  }
+  for (int i=1; i<v.size(); ++i) {
+    ret += ", " + v[i];
+  }
+  ret += " }";
+  return ret;
+}
+
+int select_best_port(const Router *r, int available_port, int pos, int dest) {
+  int best_port = HaraCh::L;
+  for (int i = 1; i <= 6; ++i) {
+    if (available_port & (1 << i)) {
+      /* if (best_port == HaraCh::L || r->GetTableVal(r->GetID(), i) <= r->GetTableVal(r->GetID(), best_port)) {
+        best_port = i;
+      }*/
+      int out_port = 0, vc = 0;
+      Port::ch2port(i, out_port, vc);
+      auto credit_i = r->GetUsedCreditVc(out_port, vc);
+      auto val_i = r->GetTableVal(dest, i);
+      Port::ch2port(best_port, out_port, vc);
+      auto credit_best = r->GetUsedCreditVc(out_port, vc);
+      auto val_best = r->GetTableVal(dest, best_port);
+      printf("i = %d, credit_i = %d, val_i = %d, best = %d, credit_best = %d, val_best = %d\n", i, credit_i, val_i, best_port, credit_best, val_best);
+      if (best_port == HaraCh::L || val_i <= val_best) {
+        best_port = i;
+      }
+    }
+  }
+  return best_port;
+}
+
+// Highly Adaptive Non-minimalRouting Algorithm
+void hara_mesh( const Router *r, const Flit *f,
+     int in_channel, OutputSet *outputs, bool inject )
+{
+  int vcBegin = 0, vcEnd = gNumVCs - 1;
+  if (f->type == Flit::READ_REQUEST) {
+    vcBegin = gReadReqBeginVC;
+    vcEnd = gReadReqEndVC;
+  } else if (f->type == Flit::WRITE_REQUEST) {
+    vcBegin = gWriteReqBeginVC;
+    vcEnd = gWriteReqEndVC;
+  } else if (f->type == Flit::READ_REPLY) {
+    vcBegin = gReadReplyBeginVC;
+    vcEnd = gReadReplyEndVC;
+  } else if (f->type == Flit::WRITE_REPLY) {
+    vcBegin = gWriteReplyBeginVC;
+    vcEnd = gWriteReplyEndVC;
+  }
+  assert(((f->vc >= vcBegin) && (f->vc <= vcEnd)) || (inject && (f->vc < 0)));
+
+  int out_port;
+
+  if (inject) {
+
+    out_port = -1;
+    
+  } else if (r->GetID() == f->dest) {
+
+    // gRoutingPath[f->id].Show();
+    // at destination router, we don't need to separate VCs by dim order
+    out_port = 2 * gN;
+
+  } else {
+    int pos = HaraPos::id2pos(r->GetID(), f->dest);
+    int inch = gRoutingPath[f->id].InChannel();
+    int available_port = get_next_port(r->GetID(), inch, pos);
+
+    // {
+    //   int cur = r->GetID(); int dest = f->dest;
+    //   int cx = cur / gK, cy = cur % gK;
+    //   int dx = dest / gK, dy = dest % gK;
+    //   printf("---------------- hara mesh start ---------------\n");
+    //   printf("cur = (%d,%d), dest = (%d, %d)\n", cx, cy, dx, dy);
+    //   printf("inch = %s, pos = %s, available_port = %s\n",HaraCh::get_hara_ch(inch).c_str(), HaraPos::get_hara_pos(pos).c_str(), get_available_port(available_port).c_str());
+    //   printf("----------------- hara mesh end ----------------\n");
+    // }
+
+    int select_port;
+    while(true) {
+      select_port = RandomInt(6);
+      if (available_port & (1 << select_port)) {
+        if (select_port == HaraCh::L) continue;
+        break;
+      }
+    }
+
+    // select_port = select_best_port(r, available_port, pos);
+
+    int ch_vc = 0;
+    Port::ch2port(select_port, out_port, ch_vc);
+    vcBegin = vcEnd = ch_vc;
+
+    if (gRoutingPath.count(f->id)) {
+      if (r) {
+        gRoutingPath[f->id].Add(r, pos, 0, out_port, ch_vc, gTime, f);
+      }
+    } else {
+      if (r) {
+        Path p(r, pos, 0, out_port, ch_vc, gTime, f);
+        gRoutingPath[f->id] = p;
+      }
+    }
+  }
+
+  // printf("inject = %d, out_port = %d, vcBegin = %d, vcEnd = %d\n",inject, out_port, vcBegin, vcEnd);
+
+  outputs->Clear();
+
+  outputs->AddRange(out_port, vcBegin, vcEnd);
+}
+
+// LNM: Learning Approach Applied to Non-minimalRouting
+void lnm_mesh( const Router *r, const Flit *f,
+     int in_channel, OutputSet *outputs, bool inject )
+{
+  int vcBegin = 0, vcEnd = gNumVCs - 1;
+  if (f->type == Flit::READ_REQUEST) {
+    vcBegin = gReadReqBeginVC;
+    vcEnd = gReadReqEndVC;
+  } else if (f->type == Flit::WRITE_REQUEST) {
+    vcBegin = gWriteReqBeginVC;
+    vcEnd = gWriteReqEndVC;
+  } else if (f->type == Flit::READ_REPLY) {
+    vcBegin = gReadReplyBeginVC;
+    vcEnd = gReadReplyEndVC;
+  } else if (f->type == Flit::WRITE_REPLY) {
+    vcBegin = gWriteReplyBeginVC;
+    vcEnd = gWriteReplyEndVC;
+  }
+  assert(((f->vc >= vcBegin) && (f->vc <= vcEnd)) || (inject && (f->vc < 0)));
+
+  int out_port;
+
+  if (inject) {
+
+    out_port = -1;
+    
+  } else if (r->GetID() == f->dest) {
+
+    // gRoutingPath[f->id].Show();
+    // at destination router, we don't need to separate VCs by dim order
+    out_port = 2 * gN;
+
+  } else {
+    int pos = HaraPos::id2pos(r->GetID(), f->dest);
+    int inch = gRoutingPath[f->id].InChannel();
+    int available_port = get_next_port(r->GetID(), inch, pos);
+    int select_port = select_best_port(r, available_port, pos, f->dest);
+    int val_best = r->GetTableVal(pos, select_port);
+    int ch_vc = 0;
+    Port::ch2port(select_port, out_port, ch_vc);
+    vcBegin = vcEnd = ch_vc;
+
+    if (gRoutingPath.count(f->id)) {
+      if (r) {
+        gRoutingPath[f->id].Add(r, pos, val_best, out_port, ch_vc, gTime, f);
+      }
+    } else {
+      if (r) {
+        Path p(r, pos, val_best, out_port, ch_vc, gTime, f);
+        gRoutingPath[f->id] = p;
+      }
+    }
+  }
+
+  // printf("inject = %d, out_port = %d, vcBegin = %d, vcEnd = %d\n",inject, out_port, vcBegin, vcEnd);
+
+  outputs->Clear();
+
+  outputs->AddRange(out_port, vcBegin, vcEnd);
+}
+
+void xy_yx_mesh( const Router *r, const Flit *f, 
+		 int in_channel, OutputSet *outputs, bool inject )
+{
+
+  int vcBegin = 0, vcEnd = gNumVCs-1;
+  if ( f->type == Flit::READ_REQUEST ) {
+    vcBegin = gReadReqBeginVC;
+    vcEnd = gReadReqEndVC;
+  } else if ( f->type == Flit::WRITE_REQUEST ) {
+    vcBegin = gWriteReqBeginVC;
+    vcEnd = gWriteReqEndVC;
+  } else if ( f->type ==  Flit::READ_REPLY ) {
+    vcBegin = gReadReplyBeginVC;
+    vcEnd = gReadReplyEndVC;
+  } else if ( f->type ==  Flit::WRITE_REPLY ) {
+    vcBegin = gWriteReplyBeginVC;
+    vcEnd = gWriteReplyEndVC;
+  }
+  assert(((f->vc >= vcBegin) && (f->vc <= vcEnd)) || (inject && (f->vc < 0)));
+
+  int out_port;
+
+  if(inject) {
+
+    out_port = -1;
+
+  } else if(r->GetID() == f->dest) {
+
+    // at destination router, we don't need to separate VCs by dim order
+    out_port = 2*gN;
+
+  } else {
+
+    //each class must have at least 2 vcs assigned or else xy_yx will deadlock
+    int const available_vcs = (vcEnd - vcBegin + 1) / 2;
+    assert(available_vcs > 0);
+
+    int out_port_xy = dor_next_mesh(r->GetID(), f->dest, false);
+    int out_port_yx = dor_next_mesh(r->GetID(), f->dest, true);
+
+    // Route order (XY or YX) determined when packet is injected
+    //  into the network, adaptively
+    bool x_then_y;
+    if (in_channel < 2 * gN) {
+      x_then_y = (f->vc < (vcBegin + available_vcs));
+    } else {
+      x_then_y = true;
+    }
+
+    if (x_then_y) {
+      out_port = out_port_xy;
+      vcEnd -= available_vcs;
+    } else {
+      out_port = out_port_yx;
+      vcBegin += available_vcs;
+    }
   }
 
   outputs->Clear();
@@ -618,8 +1031,10 @@ void xy_mesh( const Router *r, const Flit *f,
 
 int dor_next_mesh( int cur, int dest, bool descending )
 {
-  bool flag = false;
+  flag = false;
+
   if (flag) {
+    std::cout << "============= start dor next mesh ===============" << std::endl;
     printf("cur = %d, dest = %d, pos = (%d, %d), dest = (%d, %d)\n", cur, dest, cur%gK, (cur*gK)/gNodes, dest%gK, (dest*gK)/gNodes);
   }
   if ( cur == dest ) {
@@ -648,21 +1063,27 @@ int dor_next_mesh( int cur, int dest, bool descending )
     printf("desceding = %d, cur = %d, dest = %d", descending, cur, dest);
   }
 
+  int ret = 0;
   if ( cur < dest ) {
-    if (flag) {
-      if (descending) printf(" up\n\n");
-      else printf(" right\n\n");
-      sleep(5);
-    }
-    return 2*dim_left;     // Right
+    ret = 2*dim_left;
   } else {
-    if (flag) {
-      if (descending) printf(" down\n\n");
-      else printf(" left\n\n");
-      sleep(5);
+    ret = 2*dim_left + 1;
+  }
+  if (flag) {
+    if (ret == 0) {
+      printf(" down\n");
+    } else if (ret == 1) {
+      printf(" up\n");
+    } else if (ret == 2) {
+      printf(" right\n"); 
+    } else if (ret == 3) {
+      printf(" left\n");
     }
-    return 2*dim_left + 1; // Left
-  } 
+    std::cout << "============= end dor next mesh ===============" << std::endl;
+  }
+
+  return ret;
+  
 }
 
 //=============================================================
@@ -739,12 +1160,13 @@ void dor_next_torus( int cur, int dest, int in_port,
 
 void dim_order_mesh( const Router *r, const Flit *f, int in_channel, OutputSet *outputs, bool inject )
 {
-  int out_port = inject ? -1 : dor_next_mesh( r->GetID( ), f->dest );
-  
-  int vcBegin = 0, vcEnd = gNumVCs-1;
-  if ( f->type == Flit::READ_REQUEST ) {
-    vcBegin = gReadReqBeginVC;
-    vcEnd = gReadReqEndVC;
+  int out_port = inject ? -1 :
+            dor_next_mesh(r->GetID(), f->dest);
+
+            int vcBegin = 0, vcEnd = gNumVCs - 1;
+            if (f->type == Flit::READ_REQUEST) {
+              vcBegin = gReadReqBeginVC;
+              vcEnd = gReadReqEndVC;
   } else if ( f->type == Flit::WRITE_REQUEST ) {
     vcBegin = gWriteReqBeginVC;
     vcEnd = gWriteReqEndVC;
@@ -2065,6 +2487,9 @@ void InitializeRoutingMap( const Configuration & config )
   gRoutingFunctionMap["xy_yx_mesh"]          = &xy_yx_mesh;
   gRoutingFunctionMap["xy_mesh"]             = &xy_mesh;
   gRoutingFunctionMap["adaptive_xy_yx_mesh"]          = &adaptive_xy_yx_mesh;
+  gRoutingFunctionMap["lm_mesh"]             = &lm_mesh;
+  gRoutingFunctionMap["hara_mesh"]           = &hara_mesh;
+  gRoutingFunctionMap["lnm_mesh"]            = &lnm_mesh;
   // End Balfour-Schultz
   // ===================================================
 

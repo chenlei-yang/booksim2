@@ -32,12 +32,15 @@
 #include "router.hpp"
 #include "outputset.hpp"
 #include "config_utils.hpp"
+#include "path.hpp"
 
 typedef void (*tRoutingFunction)( const Router *, const Flit *, int in_channel, OutputSet *, bool );
 
 void InitializeRoutingMap( const Configuration & config );
 
 extern map<string, tRoutingFunction> gRoutingFunctionMap;
+extern map<int, Path> gRoutingPath;
+extern int gTime;
 
 extern int gNumVCs;
 extern int gReadReqBeginVC, gReadReqEndVC;

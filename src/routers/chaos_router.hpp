@@ -115,6 +115,7 @@ public:
   virtual void WriteOutputs( );
 
   virtual int GetUsedCredit(int out) const {return 0;}
+  virtual int GetUsedCreditVc(int o, int vc) const { return 0; }
   virtual int GetBufferOccupancy(int i) const {return 0;}
 
 #ifdef TRACK_BUFFERS

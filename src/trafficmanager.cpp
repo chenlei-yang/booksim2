@@ -31,6 +31,7 @@
 #include <limits>
 #include <cstdlib>
 #include <ctime>
+#include <unistd.h>
 
 #include "booksim.hpp"
 #include "booksim_config.hpp"
@@ -642,18 +643,26 @@ TrafficManager::~TrafficManager( )
 
 void TrafficManager::_RetireFlit( Flit *f, int dest )
 {
+    gRoutingPath[f->id].UpdateHara(_router[0]);
+    // gRoutingPath[f->id].Show(); // sleep(1);
+    // std::cout << f->dest << " " << dest << std::endl; sleep(1);
+    // std::cout << *f << std::endl;
+    // printf("retire flit %d\n", f->id);
+    // f->ShowPath(); sleep(1);
     _deadlock_timer = 0;
 
     assert(_total_in_flight_flits[f->cl].count(f->id) > 0);
     _total_in_flight_flits[f->cl].erase(f->id);
+    // if (f && f->dest != -1) f->ShowPath();
   
     if(f->record) {
         assert(_measured_in_flight_flits[f->cl].count(f->id) > 0);
         _measured_in_flight_flits[f->cl].erase(f->id);
     }
-
+    
+    /* f->watch = true;
     if ( f->watch ) { 
-        *gWatchOut << GetSimTime() << " | "
+        cout << GetSimTime() << " | "
                    << "node" << dest << " | "
                    << "Retiring flit " << f->id 
                    << " (packet " << f->pid
@@ -662,7 +671,22 @@ void TrafficManager::_RetireFlit( Flit *f, int dest )
                    << ", hops = " << f->hops
                    << ", flat = " << f->atime - f->itime
                    << ")." << endl;
+        sleep(1);
+    } */
+    if (f && f->src != -1 && f->dest != -1) {
+        auto router = (_router[0][f->src]);
+        auto dest_router = (_router[0][f->dest]);
+        if (router) {
+            // std::cout << router->GetID() << std::endl;
+            auto table = router->GetTable();
+            table->SetValue(f->dest, f->vc, f->atime - f->itime);
+            std::string filename = "./TableFile/";
+            filename += std::to_string(router->GetID()) + ".txt";
+            // table->SaveToFile(filename);
+        }
     }
+    
+    
 
     if ( f->head && ( f->dest != dest ) ) {
         ostringstream err;
@@ -916,6 +940,7 @@ void TrafficManager::_GeneratePacket( int source, int stype,
         }
 
         _partial_packets[source][cl].push_back( f );
+        // cout << *f << endl; sleep(1);
     }
 }
 
@@ -959,7 +984,7 @@ void TrafficManager::_Step( )
     }
     if(flits_in_flight && (_deadlock_timer++ >= _deadlock_warn_timeout)){
         _deadlock_timer = 0;
-        cout << "WARNING: Possible network deadlock.\n";
+        cout << "WARNING: Possible network deadlock.\n"; sleep(1);
     }
 
     vector<map<int, Flit *> > flits(_subnets);
@@ -1056,7 +1081,6 @@ void TrafficManager::_Step( )
                 }
 
                 if(cf->head && cf->vc == -1) { // Find first available VC
-	  
                     OutputSet route_set;
                     _rf(NULL, cf, -1, &route_set, true);
                     set<OutputSet::sSetElement> const & os = route_set.GetSet();
@@ -1101,6 +1125,7 @@ void TrafficManager::_Step( )
                                    << "Finding output VC for flit " << cf->id
                                    << ":" << endl;
                     }
+                    // std::cout << "vc_count = " << vc_count << std::endl;
                     for(int i = 1; i <= vc_count; ++i) {
                         int const lvc = _last_vc[n][subnet][c];
                         int const vc =
@@ -1158,13 +1183,22 @@ void TrafficManager::_Step( )
                 int const c = f->cl;
 
                 if(f->head) {
-	  
                     if (_lookahead_routing) {
                         if(!_noq) {
                             const FlitChannel * inject = _net[subnet]->GetInject(n);
                             const Router * router = inject->GetSink();
                             assert(router);
                             int in_channel = inject->GetSinkPort();
+                            if (router) {
+                                f->AddPath(router->GetID());
+                                // f->ShowPath();
+                                /* std::cout << "f->cl = " << c << std::endl;
+                                std::cout << "router = " << router->GetID() << std::endl;
+                                std::cout << "Flit = " << f->id << std::endl;
+                                f->Path.push_back(router->GetID());
+                                f->ShowPath(); */
+                                // sleep(1);
+                            }
                             _rf(router, f, in_channel, &f->la_route_set, false);
                             if(f->watch) {
                                 *gWatchOut << GetSimTime() << " | "
@@ -1184,6 +1218,10 @@ void TrafficManager::_Step( )
 
                     dest_buf->TakeBuffer(f->vc);
                     _last_vc[n][subnet][c] = f->vc;
+                    // f->Path.push_back(f->vc);
+                    if (f->id == 10000) {
+                        //f->ShowPath(); sleep(1);
+                    }
                 }
 	
                 _last_class[n][subnet] = c;
@@ -1240,7 +1278,7 @@ void TrafficManager::_Step( )
         for(int n = 0; n < _nodes; ++n) {
             map<int, Flit *>::const_iterator iter = flits[subnet].find(n);
             if(iter != flits[subnet].end()) {
-                Flit * const f = iter->second;
+                Flit * const f = iter->second; f->time = _time;
 
                 f->atime = _time;
                 if(f->watch) {
@@ -1257,7 +1295,6 @@ void TrafficManager::_Step( )
 #ifdef TRACK_FLOWS
                 ++_ejected_flits[f->cl][n];
 #endif
-	
                 _RetireFlit(f, n);
             }
         }
@@ -1266,7 +1303,7 @@ void TrafficManager::_Step( )
         _net[subnet]->WriteOutputs( );
     }
 
-    ++_time;
+    ++_time; gTime = _time;
     assert(_time);
     if(gTrace){
         cout<<"TIME "<<_time<<endl;
@@ -1979,7 +2016,11 @@ void TrafficManager::DisplayStats(ostream & os) const {
         }
     
         cout << "Class " << c << ":" << endl;
-    
+
+        /* for (auto &i : gRoutingPath) {
+          (i.second).Show();
+        } */
+
         cout 
             << "Packet latency average = " << _plat_stats[c]->Average() << endl
             << "\tminimum = " << _plat_stats[c]->Min() << endl
@@ -2051,7 +2092,7 @@ void TrafficManager::DisplayStats(ostream & os) const {
              << "Accepted packet length average = " << (double)accepted_flits / (double)accepted_packets << endl;
 
         cout << "Total in-flight flits = " << _total_in_flight_flits[c].size()
-             << " (" << _measured_in_flight_flits[c].size() << " measured)"
+             << " (" << _measured_in_flight_flits[c].size() << " measured"
              << endl;
     
 #ifdef TRACK_STALLS

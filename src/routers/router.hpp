@@ -73,6 +73,7 @@ protected:
   vector<CreditChannel *> _output_credits;
   vector<bool>            _channel_faults;
   Table* _table;
+  int _time;
 
 #ifdef TRACK_FLOWS
   vector<vector<int> > _received_flits;
@@ -103,8 +104,22 @@ public:
   inline void SetTable( Table* table ) {
     _table = table;
   }
+  inline void UpdateTable( int r, int c, int val ) {
+    _table->AverageValue(r, c, val);
+  }
+
+  inline void UpdateTableHara( int r, int c, int val ) {
+    _table->AverageValueHara(r, c, val);
+  }
+
+  inline void UpdateTableHaraStep( int r, int c, int By, int minQy ) {
+    _table->AverageValueHaraStep(r, c, By, minQy);
+  }
   inline Table* GetTable() const {
     return _table;
+  }
+  inline int GetTableVal(int r, int c) const {
+    return _table->GetVal(r, c);
   }
 
   virtual void AddInputChannel( FlitChannel *channel, CreditChannel *backchannel );
@@ -127,9 +142,12 @@ public:
   bool IsFaultyOutput( int c ) const;
 
   inline int GetID( ) const {return _id;}
+  inline void SetTime( int time ) {_time = time;}
+  inline int GetTime( ) {return _time;}
 
 
   virtual int GetUsedCredit(int o) const = 0;
+  virtual int GetUsedCreditVc(int o, int vc) const = 0;
   virtual int GetBufferOccupancy(int i) const = 0;
 
 #ifdef TRACK_BUFFERS
